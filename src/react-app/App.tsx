@@ -1,66 +1,27 @@
-// src/App.tsx
-
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import cloudflareLogo from "./assets/Cloudflare_Logo.svg";
-import honoLogo from "./assets/hono.svg";
+import { FormEvent, useEffect, useState } from "react";
 import "./App.css";
 
-function App() {
-	const [count, setCount] = useState(0);
-	const [name, setName] = useState("unknown");
+type Todo = { id: string; text: string; completed: boolean };
+const STORAGE_KEY = "todo-list-items";
 
-	return (
-		<>
-			<div>
-				<a href="https://vite.dev" target="_blank">
-					<img src={viteLogo} className="logo" alt="Vite logo" />
-				</a>
-				<a href="https://react.dev" target="_blank">
-					<img src={reactLogo} className="logo react" alt="React logo" />
-				</a>
-				<a href="https://hono.dev/" target="_blank">
-					<img src={honoLogo} className="logo cloudflare" alt="Hono logo" />
-				</a>
-				<a href="https://workers.cloudflare.com/" target="_blank">
-					<img
-						src={cloudflareLogo}
-						className="logo cloudflare"
-						alt="Cloudflare logo"
-					/>
-				</a>
-			</div>
-			<h1>Vite + React + Hono + Cloudflare</h1>
-			<div className="card">
-				<button
-					onClick={() => setCount((count) => count + 1)}
-					aria-label="increment"
-				>
-					count is {count}
-				</button>
-				<p>
-					Edit <code>src/App.tsx</code> and save to test HMR
-				</p>
-			</div>
-			<div className="card">
-				<button
-					onClick={() => {
-						fetch("/api/")
-							.then((res) => res.json() as Promise<{ name: string }>)
-							.then((data) => setName(data.name));
-					}}
-					aria-label="get name"
-				>
-					Name from API is: {name}
-				</button>
-				<p>
-					Edit <code>worker/index.ts</code> to change the name
-				</p>
-			</div>
-			<p className="read-the-docs">Click on the logos to learn more</p>
-		</>
-	);
+function loadTodos(): Todo[] {
+	try { const saved = localStorage.getItem(STORAGE_KEY); return saved ? JSON.parse(saved) as Todo[] : []; } catch { return []; }
+}
+
+function App() {
+	const [todos, setTodos] = useState<Todo[]>(loadTodos);
+	const [draft, setDraft] = useState("");
+	useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(todos)); }, [todos]);
+	const remaining = todos.filter((todo) => !todo.completed).length;
+	function addTodo(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault(); const text = draft.trim(); if (!text) return;
+		setTodos((items) => [{ id: crypto.randomUUID(), text, completed: false }, ...items]); setDraft("");
+	}
+	return <main className="todo-app"><section className="todo-card" aria-labelledby="todo-title">
+		<div className="heading"><p className="eyebrow">MY DAILY LIST</p><h1 id="todo-title">오늘의 할 일</h1><p className="remaining" aria-live="polite">남은 할 일 <strong>{remaining}</strong>개</p></div>
+		<form className="add-form" onSubmit={addTodo}><label className="sr-only" htmlFor="new-todo">새 할 일</label><input id="new-todo" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="무엇을 해야 하나요?" autoComplete="off"/><button type="submit">추가</button></form>
+		{todos.length === 0 ? <p className="empty">첫 번째 할 일을 추가해 보세요.</p> : <ul className="todo-list">{todos.map((todo) => <li className={todo.completed ? "completed" : ""} key={todo.id}><label><input type="checkbox" checked={todo.completed} onChange={() => setTodos((items) => items.map((item) => item.id === todo.id ? { ...item, completed: !item.completed } : item))}/><span>{todo.text}</span></label><button className="delete" type="button" onClick={() => setTodos((items) => items.filter((item) => item.id !== todo.id))} aria-label={`${todo.text} 삭제`}>삭제</button></li>)}</ul>}
+	</section></main>;
 }
 
 export default App;
